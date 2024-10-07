@@ -9,13 +9,36 @@ ssl._create_default_https_context = ssl._create_unverified_context
 # Função para baixar o vídeo do YouTube
 def download_video(url, output_path='video.mp4'):
     ydl_opts = {
-        'format': 'best',
+        'format': 'best',  # Inicialmente tenta o melhor formato
         'outtmpl': output_path,
     }
+
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(url, download=True)
-        print(f"Baixando vídeo: {info['title']}")
-        return output_path, info['duration']  # Retorna o caminho e a duração  # Retorna o caminho do arquivo e a duração do vídeo em segundos
+        try:
+            # Tenta extrair e baixar o vídeo com o formato 'best'
+            info = ydl.extract_info(url, download=True)
+            video_length = info['duration']  # Obtém a duração do vídeo
+        except yt_dlp.utils.ExtractorError as e:
+            print(f"Erro ao baixar o formato 'best': {str(e)}")
+            print("Listando formatos disponíveis...")
+            
+            # Extrai a lista de formatos disponíveis sem baixar
+            info = ydl.extract_info(url, download=False)
+            formats = info.get('formats', [])
+            
+            # Exibe os formatos disponíveis
+            for f in formats:
+                print(f'Format ID: {f["format_id"]}, Extension: {f["ext"]}, Resolution: {f.get("resolution", "N/A")}')
+            
+            # Escolhe um formato específico manualmente (por exemplo, ID 18, que é mp4 de baixa qualidade)
+            format_id = input("Digite o Format ID desejado para baixar: ")
+            ydl_opts['format'] = format_id
+            
+            # Tenta baixar com o formato escolhido
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl_retry:
+                info = ydl_retry.extract_info(url, download=True)
+                video_length = info['duration']  # Obtém a duração do vídeo
+    return output_path, video_length  # Retorna o caminho do arquivo e a duração do vídeo em segundos
 
 # Função para cortar o vídeo em partes de até 25 minutos
 def split_video(video_path, video_length, part_duration=25*60, output_folder='parts'):
